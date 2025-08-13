@@ -3,32 +3,35 @@ import pandas as pd
 import joblib
 
 app = Flask(__name__)
+
+# Load saved model pipeline (preprocessing + model)
 model = joblib.load('model.pkl')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     prediction = None
     if request.method == 'POST':
-        age = int(request.form.get('age', 0))
-        sex = request.form.get('sex', 'male')
-        bmi = float(request.form.get('bmi', 0.0))
-        children = int(request.form.get('children', 0))
-        smoker = request.form.get('smoker', 'no')
-        region = request.form.get('region', 'southwest')
+        try:
+            # Read inputs as raw strings / numbers — NO manual encoding
+            age = int(request.form['age'])
+            sex = request.form['sex']          # 'male' or 'female'
+            bmi = float(request.form['bmi'])
+            children = int(request.form['children'])
+            smoker = request.form['smoker']    # 'yes' or 'no'
+            region = request.form['region']    # 'southwest', 'southeast', 'northwest', 'northeast'
 
-        input_df = pd.DataFrame([{
-            'age': age,
-            'sex': sex,
-            'bmi': bmi,
-            'children': children,
-            'smoker': smoker,
-            'region': region
-        }])
+            # Create DataFrame exactly as training features (categorical as strings)
+            input_df = pd.DataFrame([[age, sex, bmi, children, smoker, region]],
+                                    columns=['age', 'sex', 'bmi', 'children', 'smoker', 'region'])
 
-        pred = model.predict(input_df)[0]
-        prediction = f"{pred:,.2f}"
+            # Predict with pipeline — automatic preprocessing
+            pred = model.predict(input_df)[0]
+            prediction = f"₹ {pred:,.2f}"
+
+        except Exception as e:
+            prediction = f"Error: {e}"
 
     return render_template('index.html', prediction=prediction)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(debug=True)
